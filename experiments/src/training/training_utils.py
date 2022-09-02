@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from pytorch_lightning import loggers as pl_loggers, Callback
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from torch.utils.data import DataLoader, random_split
 
 import experiments.src.training.training_callbacks as custom_callbacks_module
