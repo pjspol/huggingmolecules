@@ -3,8 +3,8 @@ from typing import Optional, Any
 
 import torch
 import torch.nn.functional as F
-from pytorch_lightning.metrics import Metric
-from pytorch_lightning.metrics.functional.classification import auroc
+from torchmetrics import Metric
+from torchmetrics.functional.classification import auroc
 
 
 class BatchWeightedLoss(Metric):
