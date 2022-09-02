@@ -2,7 +2,7 @@ from typing import Optional, Callable, Type
 
 import pytorch_lightning as pl
 import torch
-from pytorch_lightning.metrics import Metric
+from torchmetrics import Metric
 from torch import Tensor
 
 from experiments.src.training.training_metrics import BatchWeightedLoss
