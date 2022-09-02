@@ -165,11 +165,16 @@ def get_data_loaders(featurizer: PretrainedFeaturizerMixin, *,
                      cache_encodings: bool = False,
                      task_name: str = None,
                      dataset_name: str = None,
-                     **kwargs) -> Tuple[DataLoader, DataLoader, DataLoader]:
+                     assay_name: str = None,
+                     split_method: str = "random",
+                     split_frac: Tuple[float, float, float] = (0.8, 0.1, 0.1),
+                     split_seed: Union[int, str] = None,
+                     normalize_labels: bool = False,
+                     dataset_path: str = None) -> DataLoader:
     if task_name and dataset_name:
-        split = get_data_split(task_name=task_name, dataset_name=dataset_name, **kwargs)
+        split = get_data_split(task_name=task_name, dataset_name=dataset_name)
     elif task_name is None and dataset_name is None:
-        split = get_data_split(**kwargs)
+        split = get_data_split(split_method=split_method, split_frac=split_frac, split_seed=split_seed, normalize_labels=normalize_labels, dataset_path=dataset_path)
     else:
         raise AttributeError(
             'Both `task_name` and `dataset_name` attributes must be set either to None or to str values')
@@ -178,30 +183,22 @@ def get_data_loaders(featurizer: PretrainedFeaturizerMixin, *,
         split = _load_encodings_from_cache(split)
     else:
         split['train']['X'] = featurizer.encode_smiles_list(split['train']['X'], split['train']['Y'])
-        split['valid']['X'] = featurizer.encode_smiles_list(split['valid']['X'], split['valid']['Y'])
-        split['test']['X'] = featurizer.encode_smiles_list(split['test']['X'], split['test']['Y'])
 
     if cache_encodings and not _encodings_cached():
         _dump_encodings_to_cache(split)
 
     train_data = split['train']['X']
-    valid_data = split['valid']['X']
-    test_data = split['test']['X']
 
     logging.info(f'Train samples: {len(train_data)}')
-    logging.info(f'Validation samples: {len(valid_data)}')
-    logging.info(f'Test samples: {len(test_data)}')
 
     train_loader = featurizer.get_data_loader(train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    valid_loader = featurizer.get_data_loader(valid_data, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    test_loader = featurizer.get_data_loader(test_data, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
-    return train_loader, valid_loader, test_loader
+    return train_loader
 
 
 @gin.configurable('data')
-def get_data_split(task_name: str,
-                   dataset_name: str,
+def get_data_split(task_name: str = "",
+                   dataset_name: str = "",
                    assay_name: str = None,
                    split_method: str = "random",
                    split_frac: Tuple[float, float, float] = (0.8, 0.1, 0.1),
@@ -251,8 +248,7 @@ def _get_data_split_from_csv(dataset_name: str,
                              split_method: str,
                              split_frac: Tuple[float, float, float],
                              split_seed: int) -> Split:
-    csv_path = os.path.join(dataset_path, f'{dataset_name.lower()}.csv')
-    data = pd.read_csv(csv_path)
+    data = pd.read_csv(dataset_path)
     data.insert(0, 'IDs', range(0, len(data)))
 
     split_path = os.path.join(dataset_path, f'split-{split_method}-{split_seed}.npy')
@@ -260,20 +256,23 @@ def _get_data_split_from_csv(dataset_name: str,
         train_data, valid_data, test_data = _split_data_from_file(data, split_path)
     elif split_method == 'random':
         train_data, valid_data, test_data = _split_data_random(data, split_frac, split_seed)
+    elif split_method == 'no_split':
+        train_data = data
     else:
         raise NotImplementedError()
 
     return {
         'train': {'IDs': train_data['IDs'].to_list(),
                   'X': train_data['smiles'].to_list(),
-                  'Y': train_data['y'].to_numpy()},
-        'valid': {'IDs': valid_data['IDs'].to_list(),
-                  'X': valid_data['smiles'].to_list(),
-                  'Y': valid_data['y'].to_numpy()},
-        'test': {'IDs': test_data['IDs'].to_list(),
-                 'X': test_data['smiles'].to_list(),
-                 'Y': test_data['y'].to_numpy()}
-    }
+                  'Y': train_data['y'].to_numpy()}
+    }#,
+        #'valid': {'IDs': valid_data['IDs'].to_list(),
+        #          'X': valid_data['smiles'].to_list(),
+        #          'Y': valid_data['y'].to_numpy()},
+        #'test': {'IDs': test_data['IDs'].to_list(),
+        #         'X': test_data['smiles'].to_list(),
+        #         'Y': test_data['y'].to_numpy()}
+    #}
 
 
 def _split_data_random(data, split_frac: Tuple[float, float, float], seed: int = None):
