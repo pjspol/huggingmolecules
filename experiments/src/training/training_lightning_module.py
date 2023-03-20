@@ -41,8 +41,8 @@ class TrainingModule(pl.LightningModule):
         self.weighted_loss[mode](loss, len(batch))
         self.metric[mode](preds.cpu(), batch.y.cpu())
 
-        self.log(f'{mode}_loss', self.weighted_loss[mode], on_epoch=True, on_step=False)
-        self.log(f'{mode}_{self.metric_name}', self.metric[mode], on_epoch=True, on_step=False)
+        self.log(f'{mode}_loss', self.weighted_loss[mode], on_epoch=True, on_step=False, sync_dist=True)
+        self.log(f'{mode}_{self.metric_name}', self.metric[mode], on_epoch=True, on_step=False, sync_dist=True)
 
         return loss
 
